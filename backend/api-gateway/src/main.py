@@ -3,6 +3,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware  # For handling cross-origin requests
 from pydantic import BaseModel
 from typing import Optional, List
+import httpx
 
 # Create FastAPI application instance with metadata
 app = FastAPI(
@@ -27,8 +28,8 @@ class ChatMessage(BaseModel):
     timestamp: Optional[str] = None
 
 class ChatRequest(BaseModel):
-    message: str
-    conversation_id: Optional[str] = None
+    content: str
+    role: str = "user"  # Default role
 
 class ChatResponse(BaseModel):
     message: str
@@ -46,12 +47,11 @@ async def health_check():   # Async function for better performance
 # Chat endpoints
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    # TODO: Forward to chat service
-    return ChatResponse(
-        message="This is a placeholder response",
-        conversation_id="test-conversation",
-        timestamp="2024-03-11T00:00:00Z"
-    )
+    async with httpx.AsyncClient() as client:
+        response = await client.post("http://localhost:8001/chat", json=request.dict())
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail="Chat Service Error")
+        return response.json()
 
 @app.get("/conversations/{conversation_id}/messages", response_model=List[ChatMessage])
 async def get_conversation_messages(conversation_id: str):
