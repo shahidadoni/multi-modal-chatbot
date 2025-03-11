@@ -1,6 +1,8 @@
 # Import necessary libraries
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware  # For handling cross-origin requests
+from pydantic import BaseModel
+from typing import Optional, List
 
 # Create FastAPI application instance with metadata
 app = FastAPI(
@@ -18,6 +20,21 @@ app.add_middleware(
     allow_headers=["*"],    # Allows all headers
 )
 
+# Data models
+class ChatMessage(BaseModel):
+    content: str
+    role: str = "user"  # user or assistant
+    timestamp: Optional[str] = None
+
+class ChatRequest(BaseModel):
+    message: str
+    conversation_id: Optional[str] = None
+
+class ChatResponse(BaseModel):
+    message: str
+    conversation_id: str
+    timestamp: str
+
 # Define a simple health check endpoint
 @app.get("/health")         # HTTP GET endpoint at /health
 async def health_check():   # Async function for better performance
@@ -26,7 +43,33 @@ async def health_check():   # Async function for better performance
         "service": "api-gateway"
     }
 
+# Chat endpoints
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    # TODO: Forward to chat service
+    return ChatResponse(
+        message="This is a placeholder response",
+        conversation_id="test-conversation",
+        timestamp="2024-03-11T00:00:00Z"
+    )
+
+@app.get("/conversations/{conversation_id}/messages", response_model=List[ChatMessage])
+async def get_conversation_messages(conversation_id: str):
+    # TODO: Fetch from chat service
+    return [
+        ChatMessage(
+            content="Hello!",
+            role="user",
+            timestamp="2024-03-11T00:00:00Z"
+        ),
+        ChatMessage(
+            content="Hi there!",
+            role="assistant",
+            timestamp="2024-03-11T00:00:01Z"
+        )
+    ]
+
 # Run the application if this file is run directly
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)  # Run on all network interfaces, port 8000 
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)  # Run on all network interfaces, port 8000 
